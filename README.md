@@ -27,7 +27,7 @@ Given a folder of tumor segmentation masks (NIfTI) and clinical metadata (radiot
 - **Clinical CSV**: patient ID, RT start/end dates, and scan dates. Column names don't need to match exactly — `normalize_columns` maps common variants onto the expected schema
 
 ## Examples
-The example/ folder contains a sample clinical CSV and an overlapped_img/ folder showing example output — use these as a reference for the expected input format and the resulting overlay visualizations before running the pipeline on your own data.
+The csv/ folder contains a sample clinical CSV and an overlapped_img/ folder showing example output — use these as a reference for the expected input format and the resulting overlay visualizations before running the pipeline on your own data.
 
 ## Notes
 
