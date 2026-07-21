@@ -1,4 +1,4 @@
-# RAPNO Pipeline
+# AutoRAPNO Pipeline
 
 An end-to-end pipeline for computing RAPNO (Response Assessment in Pediatric Neuro-Oncology) tumor measurements from segmentation masks, tracking longitudinal treatment response, and visualizing results.
 
