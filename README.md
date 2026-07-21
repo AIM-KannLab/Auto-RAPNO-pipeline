@@ -26,6 +26,9 @@ Given a folder of tumor segmentation masks (NIfTI) and clinical metadata (radiot
 - **Segmentation masks**: NIfTI files named `{pat_id}_{scandate}_mask.nii.gz` (scan date in `YYYYMMDD` format).
 - **Clinical CSV**: patient ID, RT start/end dates, and scan dates. Column names don't need to match exactly — `normalize_columns` maps common variants onto the expected schema
 
+## Examples
+The example/ folder contains a sample clinical CSV and an overlapped_img/ folder showing example output — use these as a reference for the expected input format and the resulting overlay visualizations before running the pipeline on your own data.
+
 ## Notes
 
 This pipeline was developed for pediatric brain tumor (DMG, DIPG and phGG) segmentation and treatment-response analysis. It's designed to be reasonably dataset-agnostic, but assumes RAPNO-style bidimensional measurement conventions and pediatric neuro-oncology response criteria specifically — adapt the response-classification thresholds if applying to a different tumor type or response framework (e.g., RANO).
