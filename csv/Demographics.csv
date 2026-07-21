@@ -1,0 +1,3 @@
+Trial,pat_id,Sex,Age,tumor_location,RT_start_date,RT_end_date,total_scandates,Progression_date
+pnoc008,01,Male,10,"left temporal",1/1/2019,3/27/2019,, 20111103
+pnoc008,02,Female,3,"Right temporal",10/27/2017,11/13/2017,20171020-20180119, 20171103
