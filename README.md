@@ -24,7 +24,12 @@ Given a folder of tumor segmentation masks (NIfTI) and clinical metadata (radiot
 ## Input requirements
 
 - **Segmentation masks**: NIfTI files named `{pat_id}_{scandate}_mask.nii.gz` (scan date in `YYYYMMDD` format).
-- **Clinical CSV**: patient ID, RT start/end dates, and scan dates. Column names don't need to match exactly — `normalize_columns` maps common variants onto the expected schema
+- **Clinical CSV**: patient ID, RT start/end dates, and scan dates. Column names don't need to match exactly — `normalize_columns` maps common variants onto the expected schema. Your demographic/clinical spreadsheet can contain any number of additional columns (e.g. institution, diagnosis details, treatment notes); the pipeline only reads and standardizes the fields it actually needs.
+
+## RAPNO classification columns
+The pipeline outputs two related but distinct sets of columns per plane (axial/sagittal/coronal) present in the 'final_dataset_volumes_and_max_areas_all.csv':
+RAPNO_prog_{plane} — the response classification at each individual timepoint, as a comma-separated sequence (e.g. Baseline, Partial response, Progressive disease). This shows how the tumor's status evolved scan-by-scan relative to baseline and to the smallest tumor burden observed up to that point.
+Final_RAPNO_prog_{plane} — a single overall classification summarizing the most recent evaluable timepoint for that patient/plane. This is the column used for a quick per-patient summary (e.g. in the dashboard's summary dropdown), whereas RAPNO_prog_{plane} is used to render the full longitudinal trajectory.
 
 ## Examples
 The csv/ folder contains a sample clinical CSV and an overlapped_img/ folder showing example output — use these as a reference for the expected input format and the resulting overlay visualizations before running the pipeline on your own data.
