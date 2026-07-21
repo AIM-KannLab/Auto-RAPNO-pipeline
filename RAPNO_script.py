@@ -54,7 +54,7 @@ Please rename the variables in clinical dataset as specified below:
 - RT end date: RT_end_date
 - Date of First Progression: Progression_date (first progression after first period of RT)
 - total_scandates: total_scandates (the date of scans you have available; available images and masks)
-- tumor location: tumor_location (string of explanation from radiologist)
+- tumor location: tumor_location (pontine vs non-pontine)
 - sex: Sex
 - Age:Age
 
