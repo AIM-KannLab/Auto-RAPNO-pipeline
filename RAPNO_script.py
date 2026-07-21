@@ -2019,385 +2019,88 @@ print(volumes.head())
 
 
 
-""" 2. RAPNO progression variable  """
+""" 2. RAPNO progression variable """
 
 col = ["axial_max_area", "sagittal_max_area", "coronal_max_area"]
-vol_2Ds = {}
 
+PR_THRESHOLD = 0.25              # progression threshold, relative to smallest area to date — same for all cases
+PARTIAL_THRESHOLD_PONS = 0.25
+PARTIAL_THRESHOLD_NON_PONS = 0.50
+MINOR_LOW_THRESHOLD = 0.25
+MINOR_HIGH_THRESHOLD = 0.50
 
 for id, row in volumes.iterrows():
-    # Create a dictionary per ID for 'all' planes
 
-    if pd.notna(row['RT_end_date']):
-    
-        pat_id = row['pat_id']
-        scans = str(row['total_scandates']).split("-")
-        scan_dates = [datetime.strptime(date, "%Y%m%d") for date in scans]
-        total_months = (max(scan_dates) - min(scan_dates)).days / 30.44
+    pat_id = row['pat_id']
+    scans = str(row['total_scandates']).split("-")
+    scan_dates = [datetime.strptime(date, "%Y%m%d") for date in scans]
+    total_months = (max(scan_dates) - min(scan_dates)).days / 30.44
 
-        days_after_RT = row['From_RT_end_to_scan(days)']
-        days_prog = [float(x) for x in days_after_RT.split(",")]
-        #vol_list = [float(x) for x in ast.literal_eval(row['3D_Volume_(cm3)'])]  USE THIS IF IT'S NOT A LIST
-        vol_list = [float(x) if x != "-" else float('nan') for x in row['3D_Volume_(cm3)']]
-       # print(len(days_prog), len(vol_list))
+    # PONS vs non-PONS thresholds, based on tumor_location text
+    tumor_location = str(row.get('tumor_location', '')).lower()
+    is_pons = 'pons' in tumor_location or 'dipg' in tumor_location
+    partial_threshold = PARTIAL_THRESHOLD_PONS if is_pons else PARTIAL_THRESHOLD_NON_PONS
+    use_minor = not is_pons
 
-        days_prog_filtered = [day for day, volume in zip(days_prog, vol_list) if volume != "-"]
-        #print(days_prog_filtered)
-      
+    if plane == "all":
+        vol_2Ds = {c: row[c] for c in col if pd.notna(row[c])}
+    else:
+        c = f"{plane}_max_area"
+        vol_2Ds = {c: row[c]} if pd.notna(row.get(c)) else {}
 
-        days_prog_filtered = [day for day, volume in zip(days_prog, vol_list) if volume != "-"]
+    for plane_name, area_str in vol_2Ds.items():
 
-        volumes.at[id, 'From_RT_end_to_scan(days)_available'] = ", ".join(map(str, days_prog_filtered))
-
-
-
-        if plane == "all":
-                vol_2Ds = {c: row[c] for c in col if pd.notna(row[c])}  # Dictionary per ID
-            #    print(vol_2Ds)
-        else:
-                c = f"{plane}_Area_(cm2)"
-                vol_2Ds = {c: row[c]}
-                #print(vol_2Ds)  #  {'Axial_Area_(cm2)': '23.06'}
-
-    # If working with all planes, split the volumes into lists and handle the baseline
-        if plane == "all":
-            baselines = {}
-            for plane_name, area_str in vol_2Ds.items():
-            # Convert the area string into a list of floats
-                areas_list = [float(x) for x in area_str.split(",") if x.strip() not in ["", "-"]]
-             #   print("areas list", len(areas_list))
-
-                if len(areas_list) < 2:  ## minimum of 2 scans
-                    continue
-
-                baseline_index = 0
-                for i in reversed(range(len(days_prog_filtered))):  ## first scan immediately before end for RT. (most recent scan)
-                    if days_prog_filtered[i] < 0:
-                        baseline_index = i
-                        break
-                
-                if baseline_index < len(areas_list):  ## because the first value can be -
-
-                    baselines[plane_name] = float(areas_list[baseline_index])
-                else: 
-                    baselines[plane_name] = float(areas_list[1])
-
-                ## TAKE MRI AFTER RT and NO baseline 
-                areas_list_filtered = [
-                    vol for vol, day in zip(areas_list[1:], days_prog_filtered[1:]) if day > 0
-                ]
-
-                #print("filtered", areas_list_filtered)
-
-                if len(areas_list_filtered ) < 1: ## because if i have 1 + the baseline will be fine 
-                    continue
-
-
-            # Extract the first area value (baseline) for each plane
-                  # First value is the baseline
-           # print(f"Baseline for {plane_name}: {baselines[plane_name]}")\
-
-                areas_list_filtered_small = []
-                dif_ratios_from_smallest = []
-
-                ## IF the baseline tumor is after RT i count it
-                if days_prog_filtered[0] > 0:  ## incorporate to count the smallest tumor because this will be after RT
-                    areas_list_filtered_small = [baselines[plane_name]] + areas_list_filtered 
-                    
-                    for i in range(1,  len(areas_list_filtered_small)):  # Start from the second 
-                        current_area = areas_list_filtered_small[i]
-                   #     print("current", current_area)
-              # Find the smallest area before the current one
-                        previous_areas = areas_list_filtered_small[:i]
-                        if len(previous_areas) >= 2: ## correct because i have also baseline (so minimum of baseline + scan)
-                            smallest_before_current = min(previous_areas)  # Only consider previous values
-                            #print("small_at_time", smallest_before_current)
-                            ratio = (current_area - smallest_before_current) / smallest_before_current
-
-                            dif_ratios_from_smallest.append(ratio)
-
-                        else:
-                            ratio = 0
-                            dif_ratios_from_smallest.append(ratio)
-
-                else:
-                    areas_list_filtered_small = areas_list_filtered.copy()  ## LIST OF AREAS, case where i have first scan before RT end
-                    #print(areas_list_filtered_small)
-
-                    for i in range( 0,len(areas_list_filtered_small)): 
-                        current_area = areas_list_filtered_small[i]
-                        print("current", current_area)
-              # Find the smallest area before the current one
-                        previous_areas = areas_list_filtered_small[:i]
-                        if len(previous_areas) >= 2:
-                            smallest_before_current = min(previous_areas)  # Only consider previous values
-                            print("small_at_time", smallest_before_current)
-                            ratio = (current_area - smallest_before_current) / smallest_before_current
-
-                            dif_ratios_from_smallest.append(ratio)
-
-                        else:
-                            ratio = 0  ## not previous one available. 
-                            dif_ratios_from_smallest.append(ratio)
-                
-                print("from smallest", dif_ratios_from_smallest)
-
-
-        
-            # Ensure other_vol values are converted to floats before performing subtraction
-                dif_ratios_baseline = []
-                for other_vol_val in areas_list_filtered:
-                # Calculate the difference for each volume value
-                    ratio = round((baselines[plane_name] - other_vol_val) / baselines[plane_name], 2)
-                    dif_ratios_baseline.append(ratio)
-                
-                print("from baseline", dif_ratios_baseline, dif_ratios_from_smallest, "id", pat_id)
-
-            # Determine progression state based on differences
-                if all(dif_ratio >= 0.25 for dif_ratio in dif_ratios_baseline) and total_months >= 2:
-                    volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Partial response"
-
-                elif all(dif_ratio >= 0.25 for dif_ratio in dif_ratios_from_smallest if dif_ratio != 0):  
-                    ## not count 0 because they are when the smallest mri is the first one or because there isn't
-                    volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Progressive disease"
-
-                elif all(area == 0 for area in areas_list_filtered) and total_months >= 2:
-                    volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Complete response"
-
-                else:
-                    volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Stable disease"
-                
-
-
-                ## GIVE A CLIASSIFICATION FOR A SINGLE MRI ONLY IF THEY ARE AFTER RT    
-                prog_single = []
-                prog_single.append("Baseline")
-                for i, mri_ratio in enumerate(dif_ratios_baseline):
-              
-                    if mri_ratio >= 0.25 and mri_ratio != 1: ## avoid complete response
-                        prog_single.append("Partial response")
-
-                    elif dif_ratios_from_smallest[i] >= 0.25:
-                        prog_single.append("Progressive response")
-
-                    elif dif_ratios_from_smallest[i] == 0 or dif_ratios_baseline[i]== 0:
-                        prog_single.append("Complete response")
-                    else:
-                        prog_single.append("Stable disease")
-                
-                volumes.loc[id, f"RAPNO_prog_{plane_name}"] = ", ".join(prog_single)
-
-
-        elif plane in ["Axial", "Coronal", "Sagittal"]:
-        
-       # print(f"Baseline tumor for {plane}: {baseline_tumor}")
-            baseline_tumor = {}
-            for plane_name, area in vol_2Ds.items():
-                #print(vol_2Ds.items())
-                #print(type(volume))
-                area1 = area.split(",")
-                if len(area1) < 2:  ## minimum of 3 volumes
-                    continue
-                #print("list", area)
-                areas_list = [float(x) for x in area.split(",") if x.strip() != "-"]  # Ensure area is converted to list of floats
-
-
-                areas_list_filtered = [
-                        area for area, day in zip(areas_list[1:], days_prog_filtered[1:]) if day > 0
-                    ]
-                
-                #print(areas_list_filtered)
-
-                if len(areas_list_filtered) < 1:  ## minimum of 2 volumes
-                    continue
-
-                baseline_tumor[plane_name] = float(areas_list[0])
-                #print(baseline_tumor[plane_name])
-
-            # Calculate baseline differences from the first area (baseline_tumor) for the partial response
-                dif_ratios_baseline = []
-                for other_area_val in areas_list_filtered:
-                # Calculate the difference for each area value
-                    ratio = round((baseline_tumor[plane_name] - other_area_val) / baseline_tumor[plane_name], 2)
-                    dif_ratios_baseline.append(ratio)
-                print("from baseline", dif_ratios_baseline, dif_ratios_from_smallest, "id",id)
-
-           
-            ## Useful for progressive disease
-                areas_list_filtered_small = []
-                dif_ratios_from_smallest = []
-                if days_prog_filtered[0] > 0:  ## incorporate to count the smallest tumor because this will be after RT
-                    areas_list_filtered_small = [baseline_tumor[plane_name]] + areas_list_filtered 
-                    
-                    for i in range( 1, len(areas_list_filtered_small)):  # Start from the second element
-                        current_area = areas_list_filtered_small[i]
-                        print("current", current_area)
-              # Find the smallest area before the current one
-                        previous_areas = areas_list_filtered_small[:i]
-                        if len(previous_areas) >= 2:
-                            smallest_before_current = min(previous_areas)  # Only consider previous values
-                            print("small_at_time", smallest_before_current)
-                            ratio = (current_area - smallest_before_current) / smallest_before_current
-
-                            dif_ratios_from_smallest.append(ratio)
-
-                        else:
-                            ratio = 0
-                            dif_ratios_from_smallest.append(ratio)
-
-                else:
-                    areas_list_filtered_small = areas_list_filtered.copy()
-                    print(areas_list_filtered_small)
-
-                    for i in range( 0,len(areas_list_filtered_small)):  
-                        current_area = areas_list_filtered_small[i]
-                        print("current", current_area)
-              # Find the smallest area before the current one
-                        previous_areas = areas_list_filtered_small[:i]
-                        if len(previous_areas) >= 2:
-                            smallest_before_current = min(previous_areas)  # Only consider previous values
-                            print("small_at_time", smallest_before_current)
-                            ratio = (current_area - smallest_before_current) / smallest_before_current 
-
-                            dif_ratios_from_smallest.append(ratio)
-
-                        else:
-                            ratio = 0
-                            dif_ratios_from_smallest.append(ratio)
-                
-                print("from smallest", dif_ratios_from_smallest)
-
-            # Determine progression state based on differences
-                if dif_ratios_baseline and all(dif_ratio >= 0.25 for dif_ratio in dif_ratios_baseline) and total_months >= 2:  ## if it's an empty list, doesn't count
-                    volumes.at[id, "Final_RAPNO_prog"] = "Partial response"
-
-                elif dif_ratios_from_smallest and all(dif_ratio >= 0.25 for dif_ratio in dif_ratios_from_smallest if dif_ratio != 0):  
-                    volumes.at[id, "Final_RAPNO_prog"] = "Progressive disease"
-
-                elif areas_list[1:] and all(area == 0 for area in areas_list[1:]) and total_months >= 2:
-                    volumes.at[id, "Final_RAPNO_prog"] = "Complete response"
-
-                else:
-                    volumes.at[id, "Final_RAPNO_prog"] = "Stable disease"
-
-                
-                prog_single = []
-                prog_single.append("Baseline")
-                for i, mri_ratio in enumerate(dif_ratios_baseline):
-                    if mri_ratio <= -0.25 and mri_ratio != 1: ## avoid complete response
-                        prog_single.append("Partial response")
-
-                    elif dif_ratios_from_smallest[i] >= 0.25:
-                        prog_single.append("Progressive response")
-
-                    elif dif_ratios_from_smallest[i] == 0 or dif_ratios_baseline[i]== 0:
-                        prog_single.append("Complete response")
-                    else:
-                        prog_single.append("Stable disease")
-                
-                volumes.loc[id, f"RAPNO_prog_{plane_name}"] = ", ".join(prog_single)
-
-"""
-
-for idx, row in volumes.iterrows():
-    if pd.notna(row['RT_end_date']):
-        pat_id = row['pat_id']
-
-        # Parse scan dates
-        scans = str(row['total_scandates']).split("-")
-        scan_dates = [datetime.strptime(date, "%Y%m%d") for date in scans]
-        total_months = (max(scan_dates) - min(scan_dates)).days / 30.44
-
-        # Days after RT
-        days_after_RT = row['From_RT_end_to_scan(days)']
-        days_prog = [float(x) for x in days_after_RT.split(",")]
-
-        # Convert area_pipeline string to list of floats
-        #volumes_list = [
-        #    float(x) if x.strip() not in ["", "-"] else float('nan')
-        #    for x in str(row['area_pipeline']).split(",")
-        #]
-
-        # Convert area string to list of floats CASE OF AREA PER PLANE
-        volumes_list_ax = [
-            float(x) if x.strip() not in ["", "-"] else float('nan')
-            for x in str(row['axial_max_area']).split(",")
+        areas_list = [
+            float(x) if x.strip() not in ("", "-") else np.nan
+            for x in str(area_str).split(",")
         ]
 
-        volumes_list_sag = [
-            float(x) if x.strip() not in ["", "-"] else float('nan')
-            for x in str(row['sagittal_max_area']).split(",")
-        ]
-
-        volumes_list_cor = [
-            float(x) if x.strip() not in ["", "-"] else float('nan')
-            for x in str(row['coronal_max_area']).split(",")
-        ]
-
-        volumes_list = [
-            np.nanmax([ax, sag, cor])
-            for ax, sag, cor in zip(
-                volumes_list_ax,
-                volumes_list_sag,
-                volumes_list_cor
-                )]
-
-
-        # Filter out volumes before RT (day <= 0)
-        days_prog_filtered = [
-            day for day, vol in zip(days_prog, volumes_list) if day > 0 and not pd.isna(vol)
-        ]
-        volumes_list_filtered = [
-            vol for vol, day in zip(volumes_list, days_prog) if day > 0 and not pd.isna(vol)
-        ]
-
-        # Skip if not enough scans
-        if len(volumes_list_filtered) < 1:
+        valid_areas = [a for a in areas_list if not np.isnan(a)]
+        if len(valid_areas) < 2:   # need baseline + at least 1 follow-up
             continue
 
-        # Baseline is the first volume after RT
-        baseline_volume = volumes_list_filtered[0]
+        # Baseline = first scan overall (chronologically) — no RT-date filtering
+        baseline = areas_list[0]
+        if np.isnan(baseline):
+            continue
 
-        # Calculate difference ratios from baseline
-        dif_ratios_baseline = [
-            round((baseline_volume - v) / baseline_volume, 2)
-            for v in volumes_list_filtered[1:]
-        ]
+        classification = ["Baseline"]
+        for i in range(1, len(areas_list)):
+            current_area = areas_list[i]
+            if np.isnan(current_area):
+                classification.append("-")
+                continue
 
-        # Calculate difference ratios from smallest observed volume so far
-        dif_ratios_from_smallest = []
-        smallest_so_far = baseline_volume
-        for v in volumes_list_filtered[1:]:
-            ratio = (v - smallest_so_far) / smallest_so_far
-            dif_ratios_from_smallest.append(ratio)
-            if v < smallest_so_far:
-                smallest_so_far = v
+            previous_areas = [a for a in areas_list[:i] if not np.isnan(a)]
+            smallest_so_far = min(previous_areas) if previous_areas else baseline
 
-        # Assign Final RAPNO progression
-        if dif_ratios_baseline and all(r >= 0.25 for r in dif_ratios_baseline) and total_months >= 2:
-            volumes.at[idx, "Final_RAPNO_prog"] = "Partial response"
-        elif dif_ratios_from_smallest and all(r >= 0.25 for r in dif_ratios_from_smallest if r != 0):
-            volumes.at[idx, "Final_RAPNO_prog"] = "Progressive disease"
-        elif all(v == 0 for v in volumes_list_filtered[1:]) and total_months >= 2:
-            volumes.at[idx, "Final_RAPNO_prog"] = "Complete response"
-        else:
-            volumes.at[idx, "Final_RAPNO_prog"] = "Stable disease"
+            ratio_smallest = (current_area - smallest_so_far) / smallest_so_far if smallest_so_far else np.nan
+            ratio_baseline = (baseline - current_area) / baseline if baseline else np.nan
 
-        # Assign single scan RAPNO progression
-        prog_single = ["Baseline"]
-        for i, r_base in enumerate(dif_ratios_baseline):
-            r_small = dif_ratios_from_smallest[i]
-            if r_base >= 0.25 and r_base != 1:
-                prog_single.append("Partial response")
-            elif r_small >= 0.25:
-                prog_single.append("Progressive response")
-            elif r_base == 0 or r_small == 0:
-                prog_single.append("Complete response")
+            if use_minor and MINOR_LOW_THRESHOLD <= ratio_baseline < MINOR_HIGH_THRESHOLD and ratio_baseline != 1:
+                classification.append("Minor response")
+            elif ratio_baseline >= partial_threshold and ratio_baseline != 1:
+                classification.append("Partial response")
+            elif ratio_smallest >= PR_THRESHOLD:
+                classification.append("Progressive disease")
+            elif ratio_smallest == 0 or ratio_baseline == 0:
+                classification.append("Complete response")
             else:
-                prog_single.append("Stable disease")
-        volumes.at[idx, "RAPNO_prog"] = ", ".join(prog_single)
-               
-"""
+                classification.append("Stable disease")
+
+        volumes.loc[id, f"RAPNO_prog_{plane_name}"] = ", ".join(classification)
+
+        # Overall status = last evaluable timepoint, gated by a minimum 2-month follow-up
+        real_statuses = [c for c in classification[1:] if c != "-"]
+        if real_statuses and total_months >= 2:
+            volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = real_statuses[-1]
+        elif real_statuses:
+            volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Insufficient follow-up (<2 months)"
+        else:
+            volumes.at[id, f"Final_RAPNO_prog_{plane_name}"] = "Not evaluable"
+
+
+
 
 # Save the final DataFrame
 volumes['pat_id'] = volumes['pat_id'].astype(str).str.extract(r'(\d+)')[0].str.zfill(2)  # Ensure pat_id is int for consistency
