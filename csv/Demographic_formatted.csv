@@ -1,3 +1,2 @@
 Trial,pat_id,Sex,Age,tumor_location,RT_start_date,RT_end_date,total_scandates,Progression_date
-pnoc008,01,Male,10,pons,20190101,20190327,,20111103
 pnoc008,02,Female,3,thalamus,20171027,20171113,20171020-20180119,20171103
