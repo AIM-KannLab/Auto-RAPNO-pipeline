@@ -1,2 +1,2 @@
 Trial,pat_id,Sex,Age,tumor_location,RT_start_date,RT_end_date,total_scandates,Progression_date,3D_Volume_(cm3)
-pnoc008,2,Female,3,Right temporal,20171027,20171113,20171020-20180119,20171103,"[14.88, 9.83]"
+pnoc008,2,Female,3,thalamus,20171027,20171113,20171020-20180119,20171103,"[14.88, 9.83]"
